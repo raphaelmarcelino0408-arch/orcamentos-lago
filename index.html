@@ -29,6 +29,8 @@ main{max-width:900px; margin:0 auto; padding:1.2rem 1rem 3rem;}
 input,select{background:var(--panel2); border:1px solid var(--line); color:var(--ink); padding:.55rem .6rem; border-radius:8px; font-size:.9rem; width:100%;}
 button{background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px; padding:.6rem 1rem; font-size:.85rem; font-weight:600; cursor:pointer;}
 button.secondary{background:transparent; border:1px solid var(--line); color:var(--ink);}
+button.success{background:#22c55e; color:#04120a;}
+input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); cursor:pointer; }
 button.danger{background:transparent; border:1px solid var(--danger); color:var(--danger); padding:.35rem .7rem; font-size:.78rem;}
 table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:.6rem;}
 th,td{text-align:left; padding:.5rem; border-bottom:1px solid var(--line);}
@@ -44,7 +46,7 @@ td input{width:75px; padding:.35rem;}
 .status{font-size:.8rem; padding:.5rem .7rem; border-radius:8px; margin-bottom:.8rem;}
 .status.ok{background:#1e3a2e; color:#7ee6a8;}
 .status.err{background:#3a1e1e; color:#ff9b9b;}
-@media (prefers-color-scheme: light){ .status.ok{background:#e3f6ea;color:#0f7a3d;} .status.err{background:#fce8e8;color:#b3261e;} }
+@media (prefers-color-scheme: light){ .status.ok{background:#e3f6ea;color:#0f7a3d;} .status.err{background:#fce8e8;color:#b3261e;} input[type="date"]::-webkit-calendar-picker-indicator{ filter:none; } }
 </style>
 </head>
 <body>
@@ -57,7 +59,7 @@ td input{width:75px; padding:.35rem;}
 <div class="panel">
   <h2>Catálogo (atualizado automaticamente pela planilha)</h2>
   <div id="status" class="status">Carregando produtos...</div>
-  <button class="secondary" onclick="carregarProdutos()">🔄 Atualizar catálogo</button>
+  <button id="btn-refresh" class="secondary" onclick="carregarProdutos()">🔄 Atualizar catálogo</button>
 </div>
 
 <div class="panel">
@@ -100,7 +102,7 @@ td input{width:75px; padding:.35rem;}
   </div>
 
   <div class="row" style="margin-top:1rem; justify-content:flex-end">
-    <button class="secondary" onclick="gerarPDF()">Gerar PDF do orçamento</button>
+    <button class="success" onclick="gerarPDF()">Gerar PDF do orçamento</button>
   </div>
 </div>
 
@@ -140,8 +142,13 @@ function carregarProdutos(){
     setStatus('Configure o link da planilha no arquivo (constante SHEET_CSV_URL).', false);
     return;
   }
+  const btn = document.getElementById('btn-refresh');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
   setStatus('Carregando produtos...', true);
-  Papa.parse(SHEET_CSV_URL, {
+  // separador para forçar buscar a versão mais recente, ignorando cache do Google/navegador
+  const separador = SHEET_CSV_URL.includes('?') ? '&' : '?';
+  const urlSemCache = SHEET_CSV_URL + separador + 'cb=' + Date.now();
+  Papa.parse(urlSemCache, {
     download: true,
     header: true,
     skipEmptyLines: true,
@@ -156,18 +163,21 @@ function carregarProdutos(){
           return { nome, custo, margem };
         })
         .filter(p => p.nome);
+      const agora = new Date().toLocaleTimeString('pt-BR');
       if(produtos.length === 0){
         setStatus('Planilha carregada, mas nenhum produto encontrado. Confira as colunas: Produto, Custo, Margem.', false);
       } else {
-        setStatus(produtos.length + ' produto(s) carregado(s) da planilha.', true);
+        setStatus(produtos.length + ' produto(s) carregado(s) — atualizado às ' + agora + '.', true);
       }
       const dl = document.getElementById('lista-produtos');
       dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
       renderItens();
+      if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
     },
     error: function(err){
       console.error(err);
       setStatus('Não foi possível carregar a planilha. Verifique se ela está publicada na web e se o link está correto.', false);
+      if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
     }
   });
 }
