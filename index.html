@@ -1,518 +1,309 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gerador de Propostas — Lago Segurança Eletrônica</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <style>
-    :root {
-      --bg: #0f1720;
-      --panel: #16212c;
-      --panel2: #1c2a37;
-      --line: #2a3948;
-      --ink: #e8eef3;
-      --ink-dim: #93a4b3;
-      --accent: #3aa8ff;
-      --accent-ink: #04121d;
-      --danger: #ff6b6b;
-    }
-
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #f2f5f8;
-        --panel: #fff;
-        --panel2: #eef2f6;
-        --line: #dde4ea;
-        --ink: #16212c;
-        --ink-dim: #5b6b78;
-        --accent: #0e7fd6;
-        --accent-ink: #fff;
-      }
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
-    }
-
-    header {
-      padding: 1.1rem 1.2rem;
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-      position: sticky;
-      top: 0;
-    }
-
-    header h1 {
-      font-size: 1.05rem;
-      margin: 0;
-    }
-
-    header h1 span {
-      color: var(--accent);
-    }
-
-    main {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 1.2rem 1rem 3rem;
-    }
-
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 1.1rem;
-      margin-bottom: 1rem;
-    }
-
-    .panel h2 {
-      font-size: .9rem;
-      margin: 0 0 .8rem;
-      color: var(--ink-dim);
-      font-weight: 600;
-    }
-
-    .row {
-      display: flex;
-      gap: .6rem;
-      flex-wrap: wrap;
-      align-items: end;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: .3rem;
-      flex: 1;
-      min-width: 140px;
-    }
-
-    .field label {
-      font-size: .75rem;
-      color: var(--ink-dim);
-    }
-
-    input,
-    select {
-      background: var(--panel2);
-      border: 1px solid var(--line);
-      color: var(--ink);
-      padding: .55rem .6rem;
-      border-radius: 8px;
-      font-size: .9rem;
-      width: 100%;
-    }
-
-    button {
-      background: var(--accent);
-      color: var(--accent-ink);
-      border: none;
-      border-radius: 8px;
-      padding: .6rem 1rem;
-      font-size: .85rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    button.secondary {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--ink);
-    }
-
-    button.success {
-      background: #22c55e;
-      color: #04120a;
-    }
-
-    input[type="date"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
-      cursor: pointer;
-    }
-
-    button.danger {
-      background: transparent;
-      border: 1px solid var(--danger);
-      color: var(--danger);
-      padding: .35rem .7rem;
-      font-size: .78rem;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .85rem;
-      margin-top: .6rem;
-    }
-
-    th,
-    td {
-      text-align: left;
-      padding: .5rem;
-      border-bottom: 1px solid var(--line);
-    }
-
-    th {
-      color: var(--ink-dim);
-      font-size: .72rem;
-      text-transform: uppercase;
-    }
-
-    .right {
-      text-align: right;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-    }
-
-    td input {
-      width: 75px;
-      padding: .35rem;
-    }
-
-    .muted {
-      color: var(--ink-dim);
-      font-size: .8rem;
-    }
-
-    .empty {
-      padding: 1rem;
-      text-align: center;
-      color: var(--ink-dim);
-      font-size: .85rem;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .totalbar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1.5rem;
-      margin-top: 1rem;
-    }
-
-    .totalbar b {
-      color: var(--accent);
-      font-size: 1.15rem;
-    }
-
-    .status {
-      font-size: .8rem;
-      padding: .5rem .7rem;
-      border-radius: 8px;
-      margin-bottom: .8rem;
-    }
-
-    .status.ok {
-      background: #1e3a2e;
-      color: #7ee6a8;
-    }
-
-    .status.err {
-      background: #3a1e1e;
-      color: #ff9b9b;
-    }
-
-    @media (prefers-color-scheme: light) {
-      .status.ok {
-        background: #e3f6ea;
-        color: #0f7a3d;
-      }
-
-      .status.err {
-        background: #fce8e8;
-        color: #b3261e;
-      }
-
-      input[type="date"]::-webkit-calendar-picker-indicator {
-        filter: none;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gerador de Propostas — Lago Segurança Eletrônica</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#0f1720; --panel:#16212c; --panel2:#1c2a37; --line:#2a3948;
+  --ink:#e8eef3; --ink-dim:#93a4b3; --accent:#3aa8ff; --accent-ink:#04121d; --danger:#ff6b6b;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f2f5f8; --panel:#fff; --panel2:#eef2f6; --line:#dde4ea; --ink:#16212c; --ink-dim:#5b6b78; --accent:#0e7fd6; --accent-ink:#fff; }
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;}
+header{padding:1.1rem 1.2rem; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0;}
+header h1{font-size:1.05rem; margin:0;}
+header h1 span{color:var(--accent);}
+main{max-width:900px; margin:0 auto; padding:1.2rem 1rem 3rem;}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1.1rem; margin-bottom:1rem;}
+.panel h2{font-size:.9rem; margin:0 0 .8rem; color:var(--ink-dim); font-weight:600;}
+.row{display:flex; gap:.6rem; flex-wrap:wrap; align-items:end;}
+.field{display:flex; flex-direction:column; gap:.3rem; flex:1; min-width:140px;}
+.field label{font-size:.75rem; color:var(--ink-dim);}
+input,select{background:var(--panel2); border:1px solid var(--line); color:var(--ink); padding:.55rem .6rem; border-radius:8px; font-size:.9rem; width:100%;}
+button{background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px; padding:.6rem 1rem; font-size:.85rem; font-weight:600; cursor:pointer;}
+button.secondary{background:transparent; border:1px solid var(--line); color:var(--ink);}
+button.success{background:#22c55e; color:#04120a;}
+input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); cursor:pointer; }
+button.danger{background:transparent; border:1px solid var(--danger); color:var(--danger); padding:.35rem .7rem; font-size:.78rem;}
+table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:.6rem;}
+th,td{text-align:left; padding:.5rem; border-bottom:1px solid var(--line);}
+th{color:var(--ink-dim); font-size:.72rem; text-transform:uppercase;}
+.right{text-align:right;}
+.table-wrap{overflow-x:auto;}
+td input{width:75px; padding:.35rem;}
+.muted{color:var(--ink-dim); font-size:.8rem;}
+.empty{padding:1rem; text-align:center; color:var(--ink-dim); font-size:.85rem;}
+.hidden{display:none !important;}
+.totalbar{display:flex; justify-content:flex-end; gap:1.5rem; margin-top:1rem;}
+.totalbar b{color:var(--accent); font-size:1.15rem;}
+.status{font-size:.8rem; padding:.5rem .7rem; border-radius:8px; margin-bottom:.8rem;}
+.status.ok{background:#1e3a2e; color:#7ee6a8;}
+.status.err{background:#3a1e1e; color:#ff9b9b;}
+@media (prefers-color-scheme: light){ .status.ok{background:#e3f6ea;color:#0f7a3d;} .status.err{background:#fce8e8;color:#b3261e;} input[type="date"]::-webkit-calendar-picker-indicator{ filter:none; } }
+</style>
 </head>
-
 <body>
 
-  <header>
-    <h1>Lago Segurança <span>Propostas Comerciais</span></h1>
-  </header>
-  <img id="logo-img" src="logo.png" alt="Logotipo Lago" crossorigin="anonymous" style="display:none;">
+<header><h1>Lago Segurança <span>Propostas Comerciais</span></h1></header>
+<img id="logo-img" src="logo.png" alt="Logotipo Lago" crossorigin="anonymous" style="display:none;">
 
-  <main>
+<main>
 
-    <div class="panel">
-      <h2>Catálogo (atualizado automaticamente pela planilha)</h2>
-      <div id="status" class="status">Carregando produtos...</div>
-      <button id="btn-refresh" class="secondary" onclick="carregarProdutos()">🔄 Atualizar catálogo</button>
+<div class="panel">
+  <h2>Catálogo (atualizado automaticamente pela planilha)</h2>
+  <div id="status" class="status">Carregando produtos...</div>
+  <button id="btn-refresh" class="secondary" onclick="carregarProdutos()">🔄 Atualizar catálogo</button>
+</div>
+
+<div class="panel">
+  <h2>Dados do orçamento</h2>
+  <div class="row">
+    <div class="field"><label>Cliente</label><input id="o-cliente" placeholder="Nome do cliente"></div>
+    <div class="field" style="max-width:170px"><label>Data</label><input id="o-data" type="date"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Adicionar item</h2>
+  <div class="row">
+    <div class="field" style="flex:2"><label>Produto</label>
+      <input list="lista-produtos" id="o-produto" placeholder="Digite o nome do produto...">
+      <datalist id="lista-produtos"></datalist>
     </div>
+    <div class="field" style="max-width:100px"><label>Qtd</label><input id="o-qtd" type="number" value="1" min="1"></div>
+    <button onclick="addItem()">Adicionar item</button>
+  </div>
+</div>
 
-    <div class="panel">
-      <h2>Dados do orçamento</h2>
-      <div class="row">
-        <div class="field"><label>Cliente</label><input id="o-cliente" placeholder="Nome do cliente"></div>
-        <div class="field" style="max-width:170px"><label>Data</label><input id="o-data" type="date"></div>
-      </div>
-    </div>
+<div class="panel">
+  <h2>Itens do orçamento</h2>
+  <div class="table-wrap">
+  <table id="tbl-orcamento">
+    <thead><tr><th>Produto</th><th class="right">Qtd</th><th class="right">Vlr. unit.</th><th class="right">Total</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <div id="o-empty" class="empty">Nenhum item adicionado.</div>
 
-    <div class="panel">
-      <h2>Adicionar item</h2>
-      <div class="row">
-        <div class="field" style="flex:2"><label>Produto</label>
-          <input list="lista-produtos" id="o-produto" placeholder="Digite o nome do produto...">
-          <datalist id="lista-produtos"></datalist>
-        </div>
-        <div class="field" style="max-width:100px"><label>Qtd</label><input id="o-qtd" type="number" value="1" min="1">
-        </div>
-        <button onclick="addItem()">Adicionar item</button>
-      </div>
-    </div>
+  <div class="row" style="margin-top:1rem">
+    <div class="field" style="max-width:200px"><label>Mão de obra (R$)</label><input id="o-maodeobra" type="number" step="0.01" value="0"></div>
+  </div>
 
-    <div class="panel">
-      <h2>Itens do orçamento</h2>
-      <div class="table-wrap">
-        <table id="tbl-orcamento">
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th class="right">Qtd</th>
-              <th class="right">Vlr. unit.</th>
-              <th class="right">Total</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div id="o-empty" class="empty">Nenhum item adicionado.</div>
+  <div class="totalbar">
+    <span>Produtos: <b id="tot-produtos">R$ 0,00</b></span>
+    <span>Total geral: <b id="tot-geral">R$ 0,00</b></span>
+  </div>
 
-      <div class="row" style="margin-top:1rem">
-        <div class="field" style="max-width:200px"><label>Mão de obra (R$)</label><input id="o-maodeobra" type="number"
-            step="0.01" value="0"></div>
-      </div>
+  <div class="row" style="margin-top:1rem; justify-content:flex-end">
+    <button class="success" onclick="gerarPDF()">Gerar PDF do orçamento</button>
+  </div>
+</div>
 
-      <div class="totalbar">
-        <span>Produtos: <b id="tot-produtos">R$ 0,00</b></span>
-        <span>Total geral: <b id="tot-geral">R$ 0,00</b></span>
-      </div>
+</main>
 
-      <div class="row" style="margin-top:1rem; justify-content:flex-end">
-        <button class="success" onclick="gerarPDF()">Gerar PDF do orçamento</button>
-      </div>
-    </div>
+<script>
+/* ====================================================================
+   CONFIGURAÇÃO — troque só esta linha pelo link CSV da sua planilha
+   (Google Sheets > Arquivo > Compartilhar > Publicar na Web > formato CSV)
+   ==================================================================== */
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1sZ8dxZNGwT7CAZ6khSP3shcRf7p3p4oGoyGjHhql1RaFdMKAxMyS-ZNRAGZjiA/pub?gid=149728944&single=true&output=csv";
+/* ==================================================================== */
 
-  </main>
+let produtos = []; // {nome, custo, margem}
+let itens = [];
 
-  <script>
-    /* ====================================================================
-       CONFIGURAÇÃO — troque só esta linha pelo link CSV da sua planilha
-       (Google Sheets > Arquivo > Compartilhar > Publicar na Web > formato CSV)
-       ==================================================================== */
-    const SHEET_CSV_URL = "COLE_AQUI_O_LINK_CSV_DA_SUA_PLANILHA";
-    /* ==================================================================== */
+function fmt(v){ return 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function numBR(s){
+  if(typeof s === 'number') return s;
+  if(!s) return 0;
+  s = String(s).trim().replace('R$','').trim();
+  if(s.includes(',') && s.includes('.')) s = s.replace(/\./g,'').replace(',','.');
+  else if(s.includes(',')) s = s.replace(',','.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function precoVenda(p){ return p.custo * (1 + p.margem/100); }
 
-    let produtos = []; // {nome, custo, margem}
-    let itens = [];
+function setStatus(msg, ok){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
 
-    function fmt(v) { return 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-    function numBR(s) {
-      if (typeof s === 'number') return s;
-      if (!s) return 0;
-      s = String(s).trim().replace('R$', '').trim();
-      if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
-      else if (s.includes(',')) s = s.replace(',', '.');
-      const n = parseFloat(s);
-      return isNaN(n) ? 0 : n;
-    }
-    function precoVenda(p) { return p.custo * (1 + p.margem / 100); }
-
-    function setStatus(msg, ok) {
-      const el = document.getElementById('status');
-      el.textContent = msg;
-      el.className = 'status ' + (ok ? 'ok' : 'err');
-    }
-
-    function carregarProdutos() {
-      if (!SHEET_CSV_URL || SHEET_CSV_URL.indexOf('https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1sZ8dxZNGwT7CAZ6khSP3shcRf7p3p4oGoyGjHhql1RaFdMKAxMyS-ZNRAGZjiA/pub?gid=149728944&single=true&output=csv') === 0) {
-        setStatus('Configure o link da planilha no arquivo (constante SHEET_CSV_URL).', false);
-        return;
+function carregarProdutos(){
+  if(!SHEET_CSV_URL || SHEET_CSV_URL.indexOf('COLE_AQUI') === 0){
+    setStatus('Configure o link da planilha no arquivo (constante SHEET_CSV_URL).', false);
+    return;
+  }
+  const btn = document.getElementById('btn-refresh');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
+  setStatus('Carregando produtos...', true);
+  // separador para forçar buscar a versão mais recente, ignorando cache do Google/navegador
+  const separador = SHEET_CSV_URL.includes('?') ? '&' : '?';
+  const urlSemCache = SHEET_CSV_URL + separador + 'cb=' + Date.now();
+  Papa.parse(urlSemCache, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res){
+      const rows = res.data;
+      produtos = rows
+        .map(r => {
+          const nome = (r['Produto'] || r['produto'] || '').trim();
+          const custo = numBR(r['Custo'] || r['custo']);
+          const margemRaw = r['Margem'] || r['margem'];
+          const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
+          return { nome, custo, margem };
+        })
+        .filter(p => p.nome);
+      const agora = new Date().toLocaleTimeString('pt-BR');
+      if(produtos.length === 0){
+        setStatus('Planilha carregada, mas nenhum produto encontrado. Confira as colunas: Produto, Custo, Margem.', false);
+      } else {
+        setStatus(produtos.length + ' produto(s) carregado(s) — atualizado às ' + agora + '.', true);
       }
-      const btn = document.getElementById('btn-refresh');
-      if (btn) { btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
-      setStatus('Carregando produtos...', true);
-      // separador para forçar buscar a versão mais recente, ignorando cache do Google/navegador
-      const separador = SHEET_CSV_URL.includes('?') ? '&' : '?';
-      const urlSemCache = SHEET_CSV_URL + separador + 'cb=' + Date.now();
-      Papa.parse(urlSemCache, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function (res) {
-          const rows = res.data;
-          produtos = rows
-            .map(r => {
-              const nome = (r['Produto'] || r['produto'] || '').trim();
-              const custo = numBR(r['Custo'] || r['custo']);
-              const margemRaw = r['Margem'] || r['margem'];
-              const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
-              return { nome, custo, margem };
-            })
-            .filter(p => p.nome);
-          const agora = new Date().toLocaleTimeString('pt-BR');
-          if (produtos.length === 0) {
-            setStatus('Planilha carregada, mas nenhum produto encontrado. Confira as colunas: Produto, Custo, Margem.', false);
-          } else {
-            setStatus(produtos.length + ' produto(s) carregado(s) — atualizado às ' + agora + '.', true);
-          }
-          const dl = document.getElementById('lista-produtos');
-          dl.innerHTML = produtos.map(p => `<option value="${p.nome.replace(/"/g, '&quot;')}">`).join('');
-          renderItens();
-          if (btn) { btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
-        },
-        error: function (err) {
-          console.error(err);
-          setStatus('Não foi possível carregar a planilha. Verifique se ela está publicada na web e se o link está correto.', false);
-          if (btn) { btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
-        }
-      });
-    }
-
-    function renderItens() {
-      const tb = document.querySelector('#tbl-orcamento tbody');
-      tb.innerHTML = '';
-      document.getElementById('o-empty').classList.toggle('hidden', itens.length > 0);
-      let totalProdutos = 0;
-      itens.forEach((it, i) => {
-        const p = produtos.find(pr => pr.nome === it.nome);
-        const unit = p ? precoVenda(p) : 0;
-        const total = unit * it.qtd;
-        totalProdutos += total;
-        const tr = document.createElement('tr');
-        const tdNome = document.createElement('td'); tdNome.textContent = it.nome;
-        const tdQtd = document.createElement('td'); tdQtd.className = 'right';
-        const inpQtd = document.createElement('input'); inpQtd.type = 'number'; inpQtd.min = '1'; inpQtd.value = it.qtd;
-        inpQtd.addEventListener('change', () => { itens[i].qtd = parseInt(inpQtd.value) || 1; renderItens(); });
-        tdQtd.appendChild(inpQtd);
-        const tdUnit = document.createElement('td'); tdUnit.className = 'right'; tdUnit.textContent = fmt(unit);
-        const tdTotal = document.createElement('td'); tdTotal.className = 'right'; tdTotal.textContent = fmt(total);
-        const tdAcao = document.createElement('td'); tdAcao.className = 'right';
-        const btnDel = document.createElement('button'); btnDel.className = 'danger'; btnDel.textContent = 'Remover';
-        btnDel.addEventListener('click', () => { itens.splice(i, 1); renderItens(); });
-        tdAcao.appendChild(btnDel);
-        tr.append(tdNome, tdQtd, tdUnit, tdTotal, tdAcao);
-        tb.appendChild(tr);
-      });
-      const maodeobra = parseFloat(document.getElementById('o-maodeobra').value) || 0;
-      document.getElementById('tot-produtos').textContent = fmt(totalProdutos);
-      document.getElementById('tot-geral').textContent = fmt(totalProdutos + maodeobra);
-    }
-
-    function addItem() {
-      const nome = document.getElementById('o-produto').value.trim();
-      const qtd = parseInt(document.getElementById('o-qtd').value) || 1;
-      const p = produtos.find(pr => pr.nome === nome);
-      if (!p) { alert('Produto não encontrado no catálogo. Confira o nome ou clique em "Atualizar catálogo".'); return; }
-      const existing = itens.find(it => it.nome === nome);
-      if (existing) { existing.qtd += qtd; } else { itens.push({ nome, qtd }); }
+      const dl = document.getElementById('lista-produtos');
+      dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
       renderItens();
-      document.getElementById('o-produto').value = ''; document.getElementById('o-qtd').value = 1;
+      if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
+    },
+    error: function(err){
+      console.error(err);
+      setStatus('Não foi possível carregar a planilha. Verifique se ela está publicada na web e se o link está correto.', false);
+      if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
     }
-    document.getElementById('o-maodeobra').addEventListener('input', renderItens);
+  });
+}
 
-    function gerarPDF() {
-      if (itens.length === 0) { alert('Adicione ao menos um item ao orçamento.'); return; }
-      const cliente = document.getElementById('o-cliente').value.trim() || 'Cliente';
-      const dataInput = document.getElementById('o-data').value;
-      const dataStr = dataInput ? new Date(dataInput + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-      const maodeobra = parseFloat(document.getElementById('o-maodeobra').value) || 0;
+function renderItens(){
+  const tb = document.querySelector('#tbl-orcamento tbody');
+  tb.innerHTML = '';
+  document.getElementById('o-empty').classList.toggle('hidden', itens.length>0);
+  let totalProdutos = 0;
+  itens.forEach((it,i)=>{
+    const p = produtos.find(pr=>pr.nome===it.nome);
+    const unit = p ? precoVenda(p) : 0;
+    const total = unit * it.qtd;
+    totalProdutos += total;
+    const tr = document.createElement('tr');
+    const tdNome = document.createElement('td'); tdNome.textContent = it.nome;
+    const tdQtd = document.createElement('td'); tdQtd.className='right';
+    const inpQtd = document.createElement('input'); inpQtd.type='number'; inpQtd.min='1'; inpQtd.value=it.qtd;
+    inpQtd.addEventListener('change', ()=>{ itens[i].qtd = parseInt(inpQtd.value)||1; renderItens(); });
+    tdQtd.appendChild(inpQtd);
+    const tdUnit = document.createElement('td'); tdUnit.className='right'; tdUnit.textContent = fmt(unit);
+    const tdTotal = document.createElement('td'); tdTotal.className='right'; tdTotal.textContent = fmt(total);
+    const tdAcao = document.createElement('td'); tdAcao.className='right';
+    const btnDel = document.createElement('button'); btnDel.className='danger'; btnDel.textContent='Remover';
+    btnDel.addEventListener('click', ()=>{ itens.splice(i,1); renderItens(); });
+    tdAcao.appendChild(btnDel);
+    tr.append(tdNome, tdQtd, tdUnit, tdTotal, tdAcao);
+    tb.appendChild(tr);
+  });
+  const maodeobra = parseFloat(document.getElementById('o-maodeobra').value)||0;
+  document.getElementById('tot-produtos').textContent = fmt(totalProdutos);
+  document.getElementById('tot-geral').textContent = fmt(totalProdutos + maodeobra);
+}
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+function addItem(){
+  const nome = document.getElementById('o-produto').value.trim();
+  const qtd = parseInt(document.getElementById('o-qtd').value) || 1;
+  const p = produtos.find(pr=>pr.nome===nome);
+  if(!p){ alert('Produto não encontrado no catálogo. Confira o nome ou clique em "Atualizar catálogo".'); return; }
+  const existing = itens.find(it=>it.nome===nome);
+  if(existing){ existing.qtd += qtd; } else { itens.push({nome, qtd}); }
+  renderItens();
+  document.getElementById('o-produto').value=''; document.getElementById('o-qtd').value=1;
+}
+document.getElementById('o-maodeobra').addEventListener('input', renderItens);
 
-      // Logo (canto superior esquerdo)
-      const logoImg = document.getElementById('logo-img');
-      const temLogo = logoImg && logoImg.complete && logoImg.naturalWidth > 0;
-      const logoW = 42, logoH = 16.7; // proporção do arquivo logo.png
-      if (temLogo) {
-        try { doc.addImage(logoImg, 'PNG', 14, 12, logoW, logoH); } catch (e) { console.error('logo', e); }
-      }
+function gerarPDF(){
+  if(itens.length===0){ alert('Adicione ao menos um item ao orçamento.'); return; }
+  const cliente = document.getElementById('o-cliente').value.trim() || 'Cliente';
+  const dataInput = document.getElementById('o-data').value;
+  const dataStr = dataInput ? new Date(dataInput+'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const maodeobra = parseFloat(document.getElementById('o-maodeobra').value)||0;
 
-      // Título ao lado do logo
-      const titleX = temLogo ? 62 : 14;
-      doc.setFontSize(13); doc.setTextColor(20, 40, 60); doc.setFont(undefined, 'bold');
-      const titleLines = doc.splitTextToSize('Lago Segurança eletrônica, elétrica e telecomunicações', 132);
-      doc.text(titleLines, titleX, 17);
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(10); doc.setTextColor(90, 90, 90);
-      const subtitleY = 17 + titleLines.length * 5.2 + 3;
-      doc.text('Proposta Comercial', titleX, subtitleY);
-      doc.text('Data: ' + dataStr, 196, 14, { align: 'right' });
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
-      const headerBottom = Math.max(12 + logoH, subtitleY);
-      const greetingY = headerBottom + 8;
-      doc.setFontSize(11); doc.setTextColor(30, 30, 30);
-      doc.text('Olá ' + cliente + ', segue abaixo a descrição dos serviços solicitados:', 14, greetingY);
+  // Logo (canto superior esquerdo)
+  const logoImg = document.getElementById('logo-img');
+  const temLogo = logoImg && logoImg.complete && logoImg.naturalWidth > 0;
+  const logoW = 42, logoH = 16.7; // proporção do arquivo logo.png
+  if(temLogo){
+    try{ doc.addImage(logoImg, 'PNG', 14, 12, logoW, logoH); }catch(e){ console.error('logo', e); }
+  }
 
-      const body = itens.map(it => {
-        const p = produtos.find(pr => pr.nome === it.nome);
-        const unit = p ? precoVenda(p) : 0;
-        return [it.nome, String(it.qtd), fmt(unit), fmt(unit * it.qtd)];
-      });
-      const totalProdutos = itens.reduce((s, it) => {
-        const p = produtos.find(pr => pr.nome === it.nome);
-        return s + (p ? precoVenda(p) * it.qtd : 0);
-      }, 0);
+  // Título ao lado do logo
+  const titleX = temLogo ? 62 : 14;
+  doc.setFontSize(13); doc.setTextColor(20,40,60); doc.setFont(undefined,'bold');
+  const titleLines = doc.splitTextToSize('Lago Segurança eletrônica, elétrica e telecomunicações', 132);
+  doc.text(titleLines, titleX, 17);
+  doc.setFont(undefined,'normal');
+  doc.setFontSize(10); doc.setTextColor(90,90,90);
+  const subtitleY = 17 + titleLines.length * 5.2 + 3;
+  doc.text('Proposta Comercial', titleX, subtitleY);
+  doc.text('Data: ' + dataStr, 196, 14, {align:'right'});
 
-      doc.autoTable({
-        startY: greetingY + 6,
-        head: [['01 - Produto', 'Qtd', 'Vlr. unit.', 'Vlr. total']],
-        body: body,
-        theme: 'grid',
-        headStyles: { fillColor: [16, 60, 90] },
-        styles: { fontSize: 10 }
-      });
+  const headerBottom = Math.max(12 + logoH, subtitleY);
+  const greetingY = headerBottom + 8;
+  doc.setFontSize(11); doc.setTextColor(30,30,30);
+  doc.text('Olá ' + cliente + ', segue abaixo a descrição dos serviços solicitados:', 14, greetingY);
 
-      let y = doc.lastAutoTable.finalY + 8;
-      doc.setFontSize(11);
-      doc.text('02 - Mão de obra', 14, y);
-      doc.text(fmt(maodeobra), 180, y, { align: 'right' });
-      y += 8;
-      doc.setFontSize(12); doc.setFont(undefined, 'bold');
-      doc.text('03 - Valor total', 14, y);
-      doc.text(fmt(totalProdutos + maodeobra), 180, y, { align: 'right' });
-      doc.setFont(undefined, 'normal');
+  const body = itens.map(it=>{
+    const p = produtos.find(pr=>pr.nome===it.nome);
+    const unit = p ? precoVenda(p) : 0;
+    return [it.nome, String(it.qtd), fmt(unit), fmt(unit*it.qtd)];
+  });
+  const totalProdutos = itens.reduce((s,it)=>{
+    const p = produtos.find(pr=>pr.nome===it.nome);
+    return s + (p? precoVenda(p)*it.qtd : 0);
+  },0);
 
-      y += 14;
-      doc.setFontSize(10); doc.setTextColor(90, 90, 90);
-      doc.text('Esta proposta é válida por 15 dias.', 14, y);
-      y += 6;
-      doc.text('Descontos para pagamentos à vista a combinar.', 14, y);
-      y += 6;
-      doc.text('Pagamentos a prazo sujeitos ao acréscimo das taxas de cartão.', 14, y);
-      y += 9;
-      doc.text('Quaisquer dúvidas ou esclarecimentos, contate-nos:', 14, y);
-      y += 6;
-      doc.text('lagosegurancaeletronica@gmail.com | Telefone: 49 9 9823-1406 | Telefone: 49 98899-7268', 14, y);
+  doc.autoTable({
+    startY: greetingY + 6,
+    head: [['01 - Produto','Qtd','Vlr. unit.','Vlr. total']],
+    body: body,
+    theme: 'grid',
+    headStyles: { fillColor: [16,60,90] },
+    styles: { fontSize: 10 }
+  });
 
-      doc.save('orcamento_' + cliente.replace(/\s+/g, '_') + '.pdf');
-    }
+  let y = doc.lastAutoTable.finalY + 8;
+  doc.setFontSize(11);
+  doc.text('02 - Mão de obra', 14, y);
+  doc.text(fmt(maodeobra), 180, y, {align:'right'});
+  y += 8;
+  doc.setFontSize(12); doc.setFont(undefined,'bold');
+  doc.text('03 - Valor total', 14, y);
+  doc.text(fmt(totalProdutos + maodeobra), 180, y, {align:'right'});
+  doc.setFont(undefined,'normal');
 
-    document.getElementById('o-data').valueAsDate = new Date();
-    carregarProdutos();
-  </script>
+  y += 14;
+  doc.setFontSize(10); doc.setTextColor(90,90,90);
+  doc.text('Esta proposta é válida por 15 dias.', 14, y);
+  y += 6;
+  doc.text('Descontos para pagamentos à vista a combinar.', 14, y);
+  y += 6;
+  doc.text('Pagamentos a prazo sujeitos ao acréscimo das taxas de cartão.', 14, y);
+  y += 9;
+  doc.text('Quaisquer dúvidas ou esclarecimentos, contate-nos:', 14, y);
+  y += 6;
+  doc.text('lagosegurancaeletronica@gmail.com | Telefone: 49 9 9823-1406 | Telefone: 49 98899-7268', 14, y);
+
+  doc.save('orcamento_' + cliente.replace(/\s+/g,'_') + '.pdf');
+}
+
+document.getElementById('o-data').valueAsDate = new Date();
+carregarProdutos();
+</script>
 </body>
-
 </html>
