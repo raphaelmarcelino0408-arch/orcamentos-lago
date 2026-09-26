@@ -145,37 +145,45 @@ function carregarProdutos(){
   if(btn){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
   setStatus('Carregando produtos...', true);
 
-  const url = 'https://opensheet.elk.sh/' + SHEET_ID + '/' + encodeURIComponent(SHEET_TAB) + '?t=' + Date.now();
+  const baseUrl = 'https://opensheet.elk.sh/' + SHEET_ID + '/' + encodeURIComponent(SHEET_TAB);
+  const urlDireta = baseUrl + '?t=' + Date.now();
+  const urlViaProxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl) + '%3Ft%3D' + Date.now();
 
-  fetch(url)
-    .then(r => {
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(rows => {
-      if(!Array.isArray(rows)) throw new Error('Formato inesperado');
-      produtos = rows
-        .map(r => {
-          const nome = (r['Produto'] || r['produto'] || '').toString().trim();
-          const custo = numBR(r['Custo'] || r['custo']);
-          const margemRaw = r['Margem'] || r['margem'];
-          const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
-          return { nome, custo, margem };
-        })
-        .filter(p => p.nome && !p.nome.toLowerCase().includes('(exemplo'));
-      const agora = new Date().toLocaleTimeString('pt-BR');
-      if(produtos.length === 0){
-        setStatus('Planilha carregada, mas nenhum produto encontrado. Confira a aba "' + SHEET_TAB + '" e as colunas: Produto, Custo, Margem.', false);
-      } else {
-        setStatus(produtos.length + ' produto(s) carregado(s) — atualizado às ' + agora + '.', true);
-      }
-      const dl = document.getElementById('lista-produtos');
-      dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
-      renderItens();
-    })
-    .catch(err => {
-      console.error(err);
-      setStatus('Não foi possível carregar a planilha. Verifique se ela está compartilhada como "qualquer pessoa com o link" e se o nome da aba é "' + SHEET_TAB + '".', false);
+  function processar(rows){
+    if(!Array.isArray(rows)) throw new Error('Formato inesperado');
+    produtos = rows
+      .map(r => {
+        const nome = (r['Produto'] || r['produto'] || '').toString().trim();
+        const custo = numBR(r['Custo'] || r['custo']);
+        const margemRaw = r['Margem'] || r['margem'];
+        const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
+        return { nome, custo, margem };
+      })
+      .filter(p => p.nome && !p.nome.toLowerCase().includes('(exemplo'));
+    const agora = new Date().toLocaleTimeString('pt-BR');
+    if(produtos.length === 0){
+      setStatus('Planilha carregada, mas nenhum produto encontrado. Confira a aba "' + SHEET_TAB + '" e as colunas: Produto, Custo, Margem.', false);
+    } else {
+      setStatus(produtos.length + ' produto(s) carregado(s) — atualizado às ' + agora + '.', true);
+    }
+    const dl = document.getElementById('lista-produtos');
+    dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
+    renderItens();
+  }
+
+  fetch(urlDireta)
+    .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(processar)
+    .catch(erroDireto => {
+      console.warn('Falha direta, tentando via proxy...', erroDireto);
+      fetch(urlViaProxy)
+        .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(processar)
+        .catch(erroProxy => {
+          console.error('Falha direta:', erroDireto);
+          console.error('Falha via proxy:', erroProxy);
+          setStatus('Não foi possível carregar a planilha. Verifique se ela está compartilhada como "qualquer pessoa com o link" e se o nome da aba é "' + SHEET_TAB + '".', false);
+        });
     })
     .finally(() => {
       if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
