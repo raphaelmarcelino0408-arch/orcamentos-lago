@@ -6,7 +6,6 @@
 <title>Propostas Comerciais — Lago Segurança Eletrônica</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{
   --bg:#0f1720; --panel:#16212c; --panel2:#1c2a37; --line:#2a3948;
@@ -136,7 +135,7 @@ td input{width:80px; padding:.35rem;}
 
 </main>
 <footer style="text-align:center; color:var(--ink-dim); font-size:.75rem; padding:1rem;">
-  Build: 2026-09-26-v1
+  Build: 2026-09-26-v2 (novo layout de PDF)
 </footer>
 
 <script>
@@ -324,77 +323,139 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 function gerarPDF(){
-  if(itens.length===0){ alert('Adicione ao menos um item ao orçamento.'); return; }
+  const maodeobra = parseFloat(document.getElementById('o-maodeobra').value)||0;
+  const temItens = itens.length > 0;
+  const temMDO = maodeobra > 0;
+  if(!temItens && !temMDO){ alert('Adicione ao menos um item ou um valor de mão de obra.'); return; }
+
   const cliente = document.getElementById('o-cliente').value.trim() || 'Cliente';
   const dataInput = document.getElementById('o-data').value;
   const dataStr = dataInput ? new Date(dataInput+'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-  const maodeobra = parseFloat(document.getElementById('o-maodeobra').value)||0;
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, MARGIN = 24;
 
+  const ACCENT = [15,95,168], DARK = [22,33,44], GRAY = [107,122,134], LINE = [226,232,238];
+  const BAND_BG = [16,31,48], BAND_LABEL = [147,164,179], BAND_LINE = [37,56,74], TOTAL_BLUE = [95,182,255];
+
+  // ---------- Cabeçalho ----------
   const logoImg = document.getElementById('logo-img');
   const temLogo = logoImg && logoImg.complete && logoImg.naturalWidth > 0;
-  const logoW = 42, logoH = 16.7;
   if(temLogo){
-    try{ doc.addImage(logoImg, 'PNG', 14, 12, logoW, logoH); }catch(e){}
+    try{ doc.addImage(logoImg, 'PNG', MARGIN, MARGIN, 38, 15.1); }catch(e){}
+  }
+  const titleX = MARGIN + 46;
+  doc.setFont(undefined,'bold'); doc.setFontSize(17.6);
+  doc.setTextColor(...DARK);
+  doc.text('Proposta ', titleX, MARGIN + 8.5);
+  const wProposta = doc.getTextWidth('Proposta ');
+  doc.setTextColor(...ACCENT);
+  doc.text('comercial', titleX + wProposta, MARGIN + 8.5);
+
+  doc.setFont(undefined,'normal'); doc.setFontSize(8.5);
+  doc.setTextColor(...GRAY);
+  doc.text('Segurança eletrônica, elétrica e telecomunicações', titleX, MARGIN + 14.5);
+
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.25);
+  doc.line(MARGIN, MARGIN + 19, W - MARGIN, MARGIN + 19);
+
+  // ---------- Cliente / contato ----------
+  const blocoY = MARGIN + 29;
+  doc.setFontSize(8); doc.setTextColor(...GRAY);
+  doc.text('CLIENTE', MARGIN, blocoY);
+  doc.setFont(undefined,'bold'); doc.setFontSize(12); doc.setTextColor(...DARK);
+  doc.text(cliente, MARGIN, blocoY + 6);
+  doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...GRAY);
+  doc.text('Data: ' + dataStr, MARGIN, blocoY + 13);
+
+  const rightX = W - MARGIN;
+  doc.text('lagosegurancaeletronica@gmail.com', rightX, blocoY, {align:'right'});
+  doc.text('Telefone: 49 99823-1406', rightX, blocoY + 4.5, {align:'right'});
+  doc.text('Telefone: 49 98899-7268', rightX, blocoY + 9, {align:'right'});
+
+  // ---------- Colunas da tabela ----------
+  const colProduto = MARGIN, colQtd = W - MARGIN - 85, colUnit = W - MARGIN - 55, colTotal = W - MARGIN;
+
+  function cabecalho(a, b, c, d, y){
+    doc.setFont(undefined,'bold'); doc.setFontSize(8); doc.setTextColor(...GRAY);
+    doc.text(a, colProduto, y);
+    if(b) doc.text(b, colQtd, y, {align:'center'});
+    if(c) doc.text(c, colUnit, y, {align:'right'});
+    doc.text(d, colTotal, y, {align:'right'});
+  }
+  function linha(y){ doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.line(MARGIN, y, W - MARGIN, y); }
+  function itemRow(nome, qtd, unit, total, y){
+    doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(...DARK);
+    doc.text(nome, colProduto, y);
+    if(qtd) doc.text(qtd, colQtd, y, {align:'center'});
+    if(unit) doc.text(unit, colUnit, y, {align:'right'});
+    doc.setFont(undefined,'bold'); doc.setTextColor(...ACCENT);
+    doc.text(total, colTotal, y, {align:'right'});
   }
 
-  const titleX = temLogo ? 62 : 14;
-  doc.setFontSize(13); doc.setTextColor(20,40,60); doc.setFont(undefined,'bold');
-  const titleLines = doc.splitTextToSize('Lago Segurança eletrônica, elétrica e telecomunicações', 132);
-  doc.text(titleLines, titleX, 17);
-  doc.setFont(undefined,'normal');
-  doc.setFontSize(10); doc.setTextColor(90,90,90);
-  const subtitleY = 17 + titleLines.length * 5.2 + 3;
-  doc.text('Proposta Comercial', titleX, subtitleY);
-  doc.text('Data: ' + dataStr, 196, 14, {align:'right'});
+  let cursor = blocoY + 26;
 
-  const headerBottom = Math.max(12 + logoH, subtitleY);
-  const greetingY = headerBottom + 8;
-  doc.setFontSize(11); doc.setTextColor(30,30,30);
-  doc.text('Olá ' + cliente + ', segue abaixo a descrição dos serviços solicitados:', 14, greetingY);
+  if(temItens){
+    cabecalho('PRODUTO','QTD','VLR. UNIT.','VLR. TOTAL', cursor);
+    linha(cursor + 3);
+    cursor += 10;
+    itens.forEach(it=>{
+      const p = produtos.find(pr=>pr.nome===it.nome);
+      const unit = p ? precoVenda(p) : 0;
+      itemRow(it.nome, String(it.qtd), fmt(unit), fmt(unit*it.qtd), cursor);
+      linha(cursor + 3.5);
+      cursor += 11;
+    });
+    cursor += 8;
+  }
 
-  const body = itens.map(it=>{
-    const p = produtos.find(pr=>pr.nome===it.nome);
-    const unit = p ? precoVenda(p) : 0;
-    return [it.nome, String(it.qtd), fmt(unit), fmt(unit*it.qtd)];
-  });
+  if(temMDO){
+    cabecalho('MÃO DE OBRA', '', '', 'VALOR', cursor);
+    linha(cursor + 3);
+    cursor += 10;
+    itemRow('Mão de obra', '', '', fmt(maodeobra), cursor);
+    linha(cursor + 3.5);
+    cursor += 11;
+  }
+
+  // ---------- Faixa azul (vai até a base da folha) ----------
   const totalProdutos = itens.reduce((s,it)=>{
     const p = produtos.find(pr=>pr.nome===it.nome);
     return s + (p? precoVenda(p)*it.qtd : 0);
   },0);
+  const totalGeral = totalProdutos + maodeobra;
 
-  doc.autoTable({
-    startY: greetingY + 6,
-    head: [['01 - Produto','Qtd','Vlr. unit.','Vlr. total']],
-    body: body,
-    theme: 'grid',
-    headStyles: { fillColor: [16,60,90] },
-    styles: { fontSize: 10 }
-  });
+  const bandHeight = 62;
+  doc.setFillColor(...BAND_BG);
+  doc.rect(0, H - bandHeight, W, bandHeight, 'F');
 
-  let y = doc.lastAutoTable.finalY + 8;
-  doc.setFontSize(11);
-  doc.text('02 - Mão de obra', 14, y);
-  doc.text(fmt(maodeobra), 180, y, {align:'right'});
-  y += 8;
-  doc.setFontSize(12); doc.setFont(undefined,'bold');
-  doc.text('03 - Valor total', 14, y);
-  doc.text(fmt(totalProdutos + maodeobra), 180, y, {align:'right'});
-  doc.setFont(undefined,'normal');
+  const labelY = H - bandHeight + 14, valueY = H - bandHeight + 24;
+  const col2x = W * 0.45;
 
-  y += 14;
-  doc.setFontSize(10); doc.setTextColor(90,90,90);
-  doc.text('Esta proposta é válida por 15 dias.', 14, y);
-  y += 6;
-  doc.text('Descontos para pagamentos à vista a combinar.', 14, y);
-  y += 6;
-  doc.text('Pagamentos a prazo sujeitos ao acréscimo das taxas de cartão.', 14, y);
-  y += 9;
-  doc.text('Quaisquer dúvidas ou esclarecimentos, contate-nos:', 14, y);
-  y += 6;
-  doc.text('lagosegurancaeletronica@gmail.com | Telefone: 49 9 9823-1406 | Telefone: 49 98899-7268', 14, y);
+  doc.setFont(undefined,'normal'); doc.setFontSize(7.5); doc.setTextColor(...BAND_LABEL);
+  doc.text('CONDIÇÕES', MARGIN, labelY);
+  doc.text('VÁLIDO POR', col2x, labelY);
+  doc.text('TOTAL GERAL', rightX, labelY, {align:'right'});
+
+  doc.setFontSize(7.8); doc.setTextColor(255,255,255);
+  doc.text('Desconto à vista a combinar.', MARGIN, valueY);
+  doc.text('A prazo: acréscimo das taxas de cartão.', MARGIN, valueY + 4.2);
+
+  doc.setFont(undefined,'bold'); doc.setFontSize(13);
+  doc.text('15 dias', col2x, valueY);
+
+  doc.setFontSize(18); doc.setTextColor(...TOTAL_BLUE);
+  doc.text(fmt(totalGeral), rightX, valueY, {align:'right'});
+
+  doc.setDrawColor(...BAND_LINE); doc.setLineWidth(0.2);
+  doc.line(MARGIN, H - 20, W - MARGIN, H - 20);
+
+  doc.setFont(undefined,'normal'); doc.setFontSize(9); doc.setTextColor(255,255,255);
+  doc.text('Obrigado pela preferência!', MARGIN, H - 12);
+
+  doc.setFontSize(7.5); doc.setTextColor(...BAND_LABEL);
+  doc.text('lagosegurancaeletronica@gmail.com  |  49 99823-1406  |  49 98899-7268', rightX, H - 12, {align:'right'});
 
   doc.save('orcamento_' + cliente.replace(/\s+/g,'_') + '.pdf');
 }
