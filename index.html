@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Propostas Comerciais — Lago Segurança Eletrônica</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -17,6 +18,7 @@
 }
 *{box-sizing:border-box;}
 body{margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;}
+#global-error{display:none; background:#4a1414; color:#ffb4b4; padding:.8rem 1rem; font-size:.8rem; font-family:monospace; white-space:pre-wrap; word-break:break-word;}
 header{padding:1.1rem 1.2rem; border-bottom:1px solid var(--line); background:var(--panel); display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; position:sticky; top:0; z-index:5;}
 header h1{font-size:1.05rem; margin:0;}
 header h1 span{color:var(--accent);}
@@ -35,7 +37,6 @@ input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); cursor:
 button{background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px; padding:.6rem 1rem; font-size:.85rem; font-weight:600; cursor:pointer;}
 button.secondary{background:transparent; border:1px solid var(--line); color:var(--ink);}
 button.success{background:#22c55e; color:#04120a;}
-button.danger{background:transparent; border:1px solid var(--danger); color:var(--danger); padding:.35rem .7rem; font-size:.78rem;}
 table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:.6rem;}
 th,td{text-align:left; padding:.5rem; border-bottom:1px solid var(--line);}
 th{color:var(--ink-dim); font-size:.72rem; text-transform:uppercase;}
@@ -47,9 +48,13 @@ td input{width:80px; padding:.35rem;}
 .hidden{display:none !important;}
 .totalbar{display:flex; justify-content:flex-end; gap:1.5rem; margin-top:1rem;}
 .totalbar b{color:var(--accent); font-size:1.15rem;}
+.log{font-family:monospace; font-size:.72rem; color:var(--ink-dim); white-space:pre-wrap; margin-top:.6rem; line-height:1.5;}
+.danger-btn{background:transparent; border:1px solid var(--danger); color:var(--danger);}
 </style>
 </head>
 <body>
+
+<div id="global-error"></div>
 
 <header>
   <h1>Lago Segurança <span>Propostas Comerciais</span></h1>
@@ -63,12 +68,12 @@ td input{width:80px; padding:.35rem;}
 
 <main>
 
-<!-- PRODUTOS (via planilha) -->
 <section id="tab-produtos">
   <div class="panel">
-    <h2>Catálogo (via Google Sheets)</h2>
-    <div id="status" class="muted" style="margin-bottom:.8rem; line-height:1.5;">Carregando produtos...</div>
+    <h2>Catálogo (via planilha do Google Sheets)</h2>
+    <div id="status" class="muted" style="margin-bottom:.6rem;">Carregando produtos...</div>
     <button id="btn-refresh" class="secondary" onclick="carregarProdutos()">🔄 Atualizar catálogo</button>
+    <div id="log" class="log"></div>
   </div>
 
   <div class="panel">
@@ -83,7 +88,6 @@ td input{width:80px; padding:.35rem;}
   </div>
 </section>
 
-<!-- ORCAMENTO -->
 <section id="tab-orcamento" class="hidden">
   <div class="panel">
     <h2>Dados do orçamento</h2>
@@ -132,15 +136,31 @@ td input{width:80px; padding:.35rem;}
 
 </main>
 <footer style="text-align:center; color:var(--ink-dim); font-size:.75rem; padding:1rem;">
-  Catálogo puxado do Google Sheets · Versão do arquivo: <b>2026-09-25 21:20</b>
+  Build: 2026-09-26-v1
 </footer>
 
 <script>
+/* ============ Captura QUALQUER erro do sistema e mostra na tela ============ */
+window.addEventListener('error', function(e){
+  const el = document.getElementById('global-error');
+  el.style.display = 'block';
+  el.textContent = 'ERRO NO SISTEMA: ' + e.message + '\n(arquivo: ' + e.filename + ', linha: ' + e.lineno + ')';
+});
+window.addEventListener('unhandledrejection', function(e){
+  const el = document.getElementById('global-error');
+  el.style.display = 'block';
+  el.textContent = 'ERRO NÃO TRATADO: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+});
+
+/* ====================================================================
+   CONFIGURAÇÃO — cole aqui o link publicado em CSV da sua planilha
+   (Google Sheets > Arquivo > Compartilhar > Publicar na Web > CSV)
+   ==================================================================== */
+const SHEET_CSV_URL = "COLE_AQUI_O_LINK_CSV_DA_PLANILHA";
+/* ==================================================================== */
+
 let produtos = [];
 let itens = [];
-
-const SHEET_ID = "1XB6749Y4hlaqF0_bmdML5y3NLWNkWeFxHntRn0HvImk";
-const SHEET_TAB = "Produtos";
 
 function fmt(v){ return 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function numBR(s){
@@ -154,10 +174,33 @@ function numBR(s){
 }
 function precoVenda(p){ return p.custo * (1 + p.margem/100); }
 
-function setStatus(html, ok){
+function log(msg){
+  const el = document.getElementById('log');
+  if(el) el.textContent += msg + '\n';
+}
+function setStatus(msg, ok){
   const el = document.getElementById('status');
-  el.innerHTML = html;
+  el.textContent = msg;
   el.style.color = ok ? '#3ecf8e' : '#ff9b9b';
+}
+
+function parseCSVText(texto){
+  const res = Papa.parse(texto, { header: true, skipEmptyLines: true });
+  return res.data;
+}
+
+function aplicarProdutos(rows){
+  produtos = rows
+    .map(r => {
+      const nome = (r['Produto'] || r['produto'] || '').toString().trim();
+      const custo = numBR(r['Custo'] || r['custo']);
+      const margemRaw = r['Margem'] || r['margem'];
+      const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
+      return { nome, custo, margem };
+    })
+    .filter(p => p.nome && !p.nome.toLowerCase().includes('(exemplo'));
+  renderProdutos();
+  renderItens();
 }
 
 function renderProdutos(){
@@ -173,58 +216,60 @@ function renderProdutos(){
     tb.appendChild(tr);
   });
   const dl = document.getElementById('lista-produtos');
-  dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
+  if(dl) dl.innerHTML = produtos.map(p=>`<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
 }
 
-function carregarProdutos(){
+async function tentar(nome, url){
+  log('Tentando: ' + nome + '...');
+  const r = await fetch(url, { cache: 'no-store' });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const texto = await r.text();
+  const rows = parseCSVText(texto);
+  log('OK via ' + nome + ' (' + rows.length + ' linha(s) brutas)');
+  return rows;
+}
+
+async function carregarProdutos(){
+  const el = document.getElementById('log'); if(el) el.textContent = '';
+  if(!SHEET_CSV_URL || SHEET_CSV_URL.indexOf('COLE_AQUI') === 0){
+    setStatus('Configure o link da planilha (constante SHEET_CSV_URL no arquivo).', false);
+    return;
+  }
   const btn = document.getElementById('btn-refresh');
   if(btn){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
   setStatus('Carregando produtos...', true);
 
-  const baseUrl = 'https://opensheet.elk.sh/' + SHEET_ID + '/' + encodeURIComponent(SHEET_TAB);
-  const urlDireta = baseUrl + '?t=' + Date.now();
-  const urlViaProxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl) + '%3Ft%3D' + Date.now();
+  const cb = 't=' + Date.now();
+  const sep = SHEET_CSV_URL.includes('?') ? '&' : '?';
+  const urlDireta = SHEET_CSV_URL + sep + cb;
 
-  function processar(rows, via){
-    if(!Array.isArray(rows)) throw new Error('Resposta não é uma lista (formato inesperado)');
-    produtos = rows
-      .map(r => {
-        const nome = (r['Produto'] || r['produto'] || '').toString().trim();
-        const custo = numBR(r['Custo'] || r['custo']);
-        const margemRaw = r['Margem'] || r['margem'];
-        const margem = margemRaw !== undefined && margemRaw !== '' ? numBR(margemRaw) : 50;
-        return { nome, custo, margem };
-      })
-      .filter(p => p.nome && !p.nome.toLowerCase().includes('(exemplo'));
-    const agora = new Date().toLocaleTimeString('pt-BR');
-    if(produtos.length === 0){
-      setStatus('Planilha carregada (via ' + via + '), mas nenhum produto encontrado. Confira a aba "' + SHEET_TAB + '" e as colunas Produto/Custo/Margem.', false);
-    } else {
-      setStatus(produtos.length + ' produto(s) carregado(s) via ' + via + ' — atualizado às ' + agora + '.', true);
+  const tentativas = [
+    ['conexão direta', urlDireta],
+    ['proxy allorigins', 'https://api.allorigins.win/raw?url=' + encodeURIComponent(urlDireta)],
+    ['proxy corsproxy.io', 'https://corsproxy.io/?url=' + encodeURIComponent(urlDireta)]
+  ];
+
+  let sucesso = false;
+  for(const [nome, url] of tentativas){
+    try{
+      const rows = await tentar(nome, url);
+      aplicarProdutos(rows);
+      const agora = new Date().toLocaleTimeString('pt-BR');
+      if(produtos.length === 0){
+        setStatus('Carregou (via ' + nome + '), mas nenhum produto válido encontrado. Confira as colunas Produto/Custo/Margem.', false);
+      } else {
+        setStatus(produtos.length + ' produto(s) carregado(s) via ' + nome + ' — ' + agora + '.', true);
+      }
+      sucesso = true;
+      break;
+    }catch(e){
+      log('Falhou (' + nome + '): ' + e.message);
     }
-    renderProdutos();
-    renderItens();
   }
-
-  fetch(urlDireta)
-    .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(rows => processar(rows, 'conexão direta'))
-    .catch(erroDireto => {
-      fetch(urlViaProxy)
-        .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(rows => processar(rows, 'proxy'))
-        .catch(erroProxy => {
-          setStatus(
-            '<b>Não foi possível carregar a planilha.</b><br>' +
-            'Erro direto: <code>' + (erroDireto && erroDireto.message || erroDireto) + '</code><br>' +
-            'Erro via proxy: <code>' + (erroProxy && erroProxy.message || erroProxy) + '</code>',
-            false
-          );
-        });
-    })
-    .finally(() => {
-      if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
-    });
+  if(!sucesso){
+    setStatus('Não foi possível carregar a planilha por nenhum caminho. Veja o log abaixo.', false);
+  }
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar catálogo'; }
 }
 
 function renderItens(){
@@ -246,7 +291,7 @@ function renderItens(){
     const tdUnit = document.createElement('td'); tdUnit.className='right'; tdUnit.textContent = fmt(unit);
     const tdTotal = document.createElement('td'); tdTotal.className='right'; tdTotal.textContent = fmt(total);
     const tdAcao = document.createElement('td'); tdAcao.className='right';
-    const btnDel = document.createElement('button'); btnDel.className='danger'; btnDel.textContent='Remover';
+    const btnDel = document.createElement('button'); btnDel.className='danger-btn'; btnDel.textContent='Remover';
     btnDel.addEventListener('click', ()=>{ itens.splice(i,1); renderItens(); });
     tdAcao.appendChild(btnDel);
     tr.append(tdNome, tdQtd, tdUnit, tdTotal, tdAcao);
@@ -256,17 +301,18 @@ function renderItens(){
   document.getElementById('tot-produtos').textContent = fmt(totalProdutos);
   document.getElementById('tot-geral').textContent = fmt(totalProdutos + maodeobra);
 }
+
 function addItem(){
   const nome = document.getElementById('o-produto').value.trim();
   const qtd = parseInt(document.getElementById('o-qtd').value) || 1;
   const p = produtos.find(pr=>pr.nome===nome);
-  if(!p){ alert('Produto não encontrado. Cadastre-o na aba Produtos ou selecione um da lista.'); return; }
+  if(!p){ alert('Produto não encontrado no catálogo. Confira o nome ou atualize o catálogo.'); return; }
   const existing = itens.find(it=>it.nome===nome);
   if(existing){ existing.qtd += qtd; } else { itens.push({nome, qtd}); }
   renderItens();
   document.getElementById('o-produto').value=''; document.getElementById('o-qtd').value=1;
 }
-document.getElementById('o-maodeobra').addEventListener('input', renderItens);
+document.getElementById('o-maodeobra')?.addEventListener('input', renderItens);
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -291,7 +337,7 @@ function gerarPDF(){
   const temLogo = logoImg && logoImg.complete && logoImg.naturalWidth > 0;
   const logoW = 42, logoH = 16.7;
   if(temLogo){
-    try{ doc.addImage(logoImg, 'PNG', 14, 12, logoW, logoH); }catch(e){ console.error('logo', e); }
+    try{ doc.addImage(logoImg, 'PNG', 14, 12, logoW, logoH); }catch(e){}
   }
 
   const titleX = temLogo ? 62 : 14;
@@ -353,8 +399,8 @@ function gerarPDF(){
   doc.save('orcamento_' + cliente.replace(/\s+/g,'_') + '.pdf');
 }
 
-carregarProdutos(); renderItens();
 document.getElementById('o-data').valueAsDate = new Date();
+carregarProdutos();
 </script>
 </body>
 </html>
